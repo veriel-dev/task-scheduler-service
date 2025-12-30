@@ -39,5 +39,6 @@ temp/
 # Project docs (local)
 docs/
 CLAUDE.md
+.mcp.json
 
 /src/generated/prisma
