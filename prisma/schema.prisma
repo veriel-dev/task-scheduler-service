@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma Schema para Task Scheduler Service
+// Documentación: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +8,171 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum JobStatus {
+  PENDING // Job creado, esperando ser encolado
+  QUEUED // En cola de Redis, esperando worker
+  PROCESSING // Worker lo está ejecutando
+  COMPLETED // Ejecutado exitosamente
+  FAILED // Falló después de todos los reintentos
+  RETRYING // Falló, esperando reintento
+  CANCELLED // Cancelado manualmente
+}
+
+enum JobPriority {
+  CRITICAL // Máxima prioridad (procesado primero)
+  HIGH
+  NORMAL
+  LOW // Mínima prioridad
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+/// Job representa una tarea a ejecutar
+model Job {
+  id       String      @id @default(uuid())
+  name     String // Nombre descriptivo del job
+  type     String // Tipo/handler del job (ej: "email.send", "report.generate")
+  payload  Json // Datos necesarios para ejecutar el job
+  status   JobStatus   @default(PENDING)
+  priority JobPriority @default(NORMAL)
+
+  // Configuración de reintentos
+  maxRetries Int @default(3)
+  retryCount Int @default(0)
+  retryDelay Int @default(1000) // Delay base en ms para backoff exponencial
+
+  // Ejecución diferida
+  scheduledAt DateTime? // Si está definido, no ejecutar antes de esta fecha
+
+  // Webhook de notificación
+  webhookUrl String? // URL para notificar cuando el job termine
+
+  // Resultados
+  result Json? // Resultado de la ejecución exitosa
+  error  String? // Mensaje de error si falló
+
+  // Tracking de ejecución
+  startedAt   DateTime? // Cuándo empezó a procesarse
+  completedAt DateTime? // Cuándo terminó (éxito o fallo final)
+
+  // Relaciones
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleId String?
+  workerId   String? // ID del worker que lo está/estuvo procesando
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Índices para queries frecuentes
+  @@index([status])
+  @@index([type])
+  @@index([priority])
+  @@index([scheduledAt])
+  @@index([scheduleId])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+/// Schedule representa una tarea programada (cron)
+model Schedule {
+  id          String  @id @default(uuid())
+  name        String // Nombre descriptivo
+  description String?
+
+  // Configuración del cron
+  cronExpr String // Expresión cron (ej: "0 9 * * *" = cada día a las 9am)
+  timezone String @default("UTC")
+
+  // Template del job a crear
+  jobType     String // Tipo de job a crear
+  jobPayload  Json // Payload base para el job
+  jobPriority JobPriority @default(NORMAL)
+
+  // Estado
+  enabled Boolean @default(true)
+
+  // Tracking
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  runCount  Int       @default(0)
+
+  // Relaciones
+  jobs Job[] // Jobs generados por este schedule
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([nextRunAt])
+  @@map("schedules")
+}
+
+/// DeadLetterJob almacena jobs que fallaron definitivamente para análisis
+model DeadLetterJob {
+  id String @id @default(uuid())
+
+  // Copia de los datos originales del job
+  originalJobId String
+  jobName       String
+  jobType       String
+  jobPayload    Json
+  jobPriority   JobPriority
+
+  // Información del fallo
+  failureReason String // Razón del fallo
+  failureCount  Int // Número total de intentos
+  lastError     String? // Último mensaje de error
+  errorStack    String? // Stack trace si está disponible
+
+  // Metadata
+  workerId String? // Último worker que lo intentó
+
+  // Timestamps
+  originalCreatedAt DateTime // Cuándo se creó el job original
+  failedAt          DateTime @default(now()) // Cuándo entró en DLQ
+
+  @@index([jobType])
+  @@index([failedAt])
+  @@index([originalJobId])
+  @@map("dead_letter_jobs")
+}
+
+/// Worker representa un proceso worker registrado
+model Worker {
+  id       String @id @default(uuid())
+  name     String // Nombre/identificador del worker
+  hostname String // Hostname de la máquina
+  pid      Int // Process ID
+
+  // Estado
+  status String @default("active") // active, idle, draining, stopped
+
+  // Capacidad y uso
+  concurrency Int @default(1) // Jobs que puede procesar en paralelo
+  activeJobs  Int @default(0) // Jobs actualmente en proceso
+
+  // Estadísticas
+  processedCount Int @default(0) // Total de jobs procesados
+  failedCount    Int @default(0) // Total de jobs fallidos
+
+  // Health check
+  lastHeartbeat DateTime @default(now())
+
+  // Timestamps
+  startedAt DateTime  @default(now())
+  stoppedAt DateTime?
+
+  @@index([status])
+  @@index([lastHeartbeat])
+  @@map("workers")
 }

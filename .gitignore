@@ -39,3 +39,5 @@ temp/
 # Project docs (local)
 docs/
 CLAUDE.md
+
+/src/generated/prisma
