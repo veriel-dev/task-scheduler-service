@@ -6,7 +6,7 @@ export class NotFoundError extends AppError {
   }
 }
 export class ValidationError extends AppError {
-  constructor(details: unknown) {
+  constructor(details: Record<string, string>) {
     super('Validation failed', 400, 'VALIDATION_ERROR', details);
   }
 }

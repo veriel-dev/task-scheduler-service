@@ -1,9 +1,13 @@
 import type { Express } from 'express';
 import express from 'express';
 import { requestId, httpLogger, errorHandler } from './middlewares/index.js';
+import type { Container } from '../container.js';
 
-export function createServer(): Express {
+export function createServer(container: Container): Express {
   const app = express();
+
+  // Hacer el container accesible en lso requests
+  app.locals.container = container;
 
   // Middleware globals
   app.use(requestId);
