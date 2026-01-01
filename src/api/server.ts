@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import express from 'express';
 import { requestId, httpLogger, errorHandler } from './middlewares/index.js';
 import type { Container } from '../container.js';
+import { createApiV1Router } from './routes/index.js';
 
 export function createServer(container: Container): Express {
   const app = express();
@@ -21,6 +22,7 @@ export function createServer(container: Container): Express {
 
   // TODO: Rutas de API v1
   // app.use('/api/v1', v1Router);
+  app.use('/api/v1', createApiV1Router(container));
 
   // Middleware de errores (siempre al final)
   app.use(errorHandler);

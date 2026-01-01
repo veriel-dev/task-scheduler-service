@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:3000/api/v1
+
+### Health check
+GET http://localhost:3000/health
+
+###
+
+### =====================
+###       JOBS CRUD
+### =====================
+
+### Crear un job
+POST {{baseUrl}}/jobs
+Content-Type: application/json
+
+{
+  "name": "Test Job",
+  "type": "email.send",
+  "payload": {
+    "to": "test@example.com",
+    "subject": "Hello"
+  },
+  "priority": "HIGH"
+}
+
+### Crear job con ejecución diferida
+POST {{baseUrl}}/jobs
+Content-Type: application/json
+
+{
+  "name": "Scheduled Job",
+  "type": "report.generate",
+  "payload": {
+    "reportType": "weekly"
+  },
+  "scheduledAt": "2025-01-15T10:00:00Z"
+}
+
+### Listar jobs
+GET {{baseUrl}}/jobs
+
+### Listar jobs con filtros
+GET {{baseUrl}}/jobs?status=PENDING&priority=HIGH&page=1&limit=10
+
+### Obtener job por ID
+@jobId = reemplaza-con-uuid-real
+
+###
+GET {{baseUrl}}/jobs/{{jobId}}
+
+### Actualizar job
+PATCH {{baseUrl}}/jobs/{{jobId}}
+Content-Type: application/json
+
+{
+  "priority": "CRITICAL"
+}
+
+### Cancelar job
+POST {{baseUrl}}/jobs/{{jobId}}/cancel
+
+### Eliminar job
+DELETE {{baseUrl}}/jobs/{{jobId}}
