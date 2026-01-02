@@ -1,16 +1,12 @@
 import { Router } from 'express';
 
 import { JobController } from '../../controllers/job.controller.js';
-import { JobService } from '../../../services/job.service.js';
-import { JobRepository } from '../../../repositories/job.repository.js';
 import type { Container } from '../../../container.js';
 
 export function createJobRouter(container: Container): Router {
   const router = Router();
 
-  const jobRepository = new JobRepository(container.prisma);
-  const jobService = new JobService(jobRepository, container.queueManager);
-  const jobController = new JobController(jobService);
+  const jobController = new JobController(container.jobService);
 
   router.post('/', jobController.create);
   router.get('/', jobController.list);

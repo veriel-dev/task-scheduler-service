@@ -12,6 +12,15 @@ export interface PaginatedResult<T> {
   limit: number;
   totalPages: number;
 }
+export interface InternalJobUpdate {
+  status?: JobStatus;
+  startedAt?: Date;
+  completedAt?: Date;
+  workerId?: string | null;
+  result?: Prisma.InputJsonValue | null; // ← Cambiar de object a InputJsonValue
+  error?: string | null;
+  retryCount?: number;
+}
 
 export class JobRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -65,13 +74,12 @@ export class JobRepository {
     };
   }
 
-  async update(id: string, input: UpdateJobInput): Promise<Job> {
+  async update(id: string, input: UpdateJobInput | Prisma.JobUpdateInput): Promise<Job> {
     return this.prisma.job.update({
       where: { id },
       data: input,
     });
   }
-
   async delete(id: string): Promise<Job> {
     return this.prisma.job.delete({
       where: { id },

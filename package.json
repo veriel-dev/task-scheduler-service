@@ -17,7 +17,8 @@
     "prisma:generate": "pnpm exec prisma generate",
     "prisma:push": "pnpm exec prisma db push",
     "prisma:migrate": "pnpm exec prisma migrate dev",
-    "prisma:studio": "pnpm exec prisma studio"
+    "prisma:studio": "pnpm exec prisma studio",
+    "worker": "tsx src/worker.ts"
   },
   "keywords": [],
   "author": "",
