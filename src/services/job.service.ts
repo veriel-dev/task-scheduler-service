@@ -7,12 +7,23 @@ import type {
   UpdateJobInput,
 } from '../api/validators/job.validator.js';
 import { NotFoundError, BadRequestError } from '../domain/errors/http.errors.js';
+import type { QueueManager } from '../core/queue/QueueManager.js';
 
 export class JobService {
-  constructor(private readonly jobRepository: JobRepository) {}
+  constructor(
+    private readonly jobRepository: JobRepository,
+    private readonly queueManager: QueueManager
+  ) {}
 
   async create(input: CreateJobInput): Promise<Job> {
-    return this.jobRepository.create(input);
+    const job = await this.jobRepository.create(input);
+
+    if (job.scheduledAt && job.scheduledAt > new Date()) {
+      await this.queueManager.enqueueDelayed(job.id, job.scheduledAt, job.priority);
+    } else {
+      await this.queueManager.enqueue(job.id, job.priority);
+    }
+    return this.jobRepository.updateStatus(job.id, 'QUEUED');
   }
   async getById(id: string): Promise<Job> {
     const job = await this.jobRepository.findById(id);

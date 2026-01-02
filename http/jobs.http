@@ -23,17 +23,62 @@ Content-Type: application/json
   "priority": "HIGH"
 }
 
-### Crear job con ejecución diferida
+### Crear job con prioridad CRITICAL (se encola primero)
+POST {{baseUrl}}/jobs
+Content-Type: application/json
+
+{
+  "name": "Critical Job",
+  "type": "EMAIL",
+  "payload": {
+    "to": "urgent@example.com",
+    "subject": "Urgent notification"
+  },
+  "priority": "CRITICAL"
+}
+
+### Crear job con ejecución diferida (delayed queue)
 POST {{baseUrl}}/jobs
 Content-Type: application/json
 
 {
   "name": "Scheduled Job",
-  "type": "report.generate",
+  "type": "WEBHOOK",
   "payload": {
-    "reportType": "weekly"
+    "url": "https://api.example.com/callback"
   },
-  "scheduledAt": "2025-01-15T10:00:00Z"
+  "priority": "NORMAL",
+  "scheduledAt": "2026-01-15T10:00:00Z"
+}
+
+### Crear job con webhook de notificación
+POST {{baseUrl}}/jobs
+Content-Type: application/json
+
+{
+  "name": "Job with Webhook",
+  "type": "REPORT",
+  "payload": {
+    "reportType": "monthly",
+    "format": "pdf"
+  },
+  "priority": "LOW",
+  "webhookUrl": "https://api.example.com/job-completed"
+}
+
+### Crear job con configuración de reintentos
+POST {{baseUrl}}/jobs
+Content-Type: application/json
+
+{
+  "name": "Retry Job",
+  "type": "API_CALL",
+  "payload": {
+    "endpoint": "https://external-api.com/data"
+  },
+  "priority": "NORMAL",
+  "maxRetries": 5,
+  "retryDelay": 5000
 }
 
 ### Listar jobs

@@ -9,7 +9,7 @@ export function createJobRouter(container: Container): Router {
   const router = Router();
 
   const jobRepository = new JobRepository(container.prisma);
-  const jobService = new JobService(jobRepository);
+  const jobService = new JobService(jobRepository, container.queueManager);
   const jobController = new JobController(jobService);
 
   router.post('/', jobController.create);
