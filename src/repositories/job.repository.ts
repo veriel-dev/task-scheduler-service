@@ -17,9 +17,10 @@ export interface InternalJobUpdate {
   startedAt?: Date;
   completedAt?: Date;
   workerId?: string | null;
-  result?: Prisma.InputJsonValue | null; // ← Cambiar de object a InputJsonValue
+  result?: Prisma.InputJsonValue | null;
   error?: string | null;
   retryCount?: number;
+  scheduleId?: string | null;
 }
 
 export class JobRepository {
@@ -74,10 +75,13 @@ export class JobRepository {
     };
   }
 
-  async update(id: string, input: UpdateJobInput | Prisma.JobUpdateInput): Promise<Job> {
+  async update(
+    id: string,
+    input: UpdateJobInput | InternalJobUpdate | Prisma.JobUpdateInput
+  ): Promise<Job> {
     return this.prisma.job.update({
       where: { id },
-      data: input,
+      data: input as Prisma.JobUpdateInput,
     });
   }
   async delete(id: string): Promise<Job> {

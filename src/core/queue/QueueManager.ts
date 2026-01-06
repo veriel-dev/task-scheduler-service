@@ -29,12 +29,14 @@ export class QueueManager {
 
   /**
    * Calcula el score para un job basado en timestamp y prioridad
-   * Score = timestamp - (prioridad_offset)
-   * Esto asegura que jobs con mayor prioridad se procesan primero
+   * Score = timestamp + prioridad_offset
+   * ZPOPMIN retorna el menor score primero, por lo tanto:
+   * - CRITICAL (offset 0) tiene el menor score → se procesa primero
+   * - LOW (offset 3M) tiene el mayor score → se procesa último
    */
   private calculateScore(priority: JobPriority, timestamp?: Date): number {
     const ts = timestamp ? timestamp.getTime() : Date.now();
-    return ts - PRIORITY_SCORES[priority];
+    return ts + PRIORITY_SCORES[priority];
   }
   /**
    * Encola un job en la cola de prioridad

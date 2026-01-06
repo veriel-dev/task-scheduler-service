@@ -18,7 +18,8 @@
     "prisma:push": "pnpm exec prisma db push",
     "prisma:migrate": "pnpm exec prisma migrate dev",
     "prisma:studio": "pnpm exec prisma studio",
-    "worker": "tsx src/worker.ts"
+    "worker": "tsx src/worker.ts",
+    "scheduler": "tsx src/scheduler.ts"
   },
   "keywords": [],
   "author": "",
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",
+    "croner": "^9.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "pino": "^10.1.0",

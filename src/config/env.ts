@@ -16,6 +16,10 @@ const envSchema = z.object({
   // QUEUE
   QUEUE_PREFIX: z.string().default('scheduler'),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(5),
+
+  // SCHEDULER
+  SCHEDULER_CHECK_INTERVAL_MS: z.coerce.number().int().min(1000).default(10000),
+  SCHEDULER_DEFAULT_TIMEZONE: z.string().default('UTC'),
 });
 
 export type Env = z.infer<typeof envSchema>;
