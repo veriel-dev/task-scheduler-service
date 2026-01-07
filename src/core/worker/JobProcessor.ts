@@ -1,6 +1,8 @@
 import type { Job } from '@prisma/client';
 import type { JobRepository } from '../../repositories/job.repository.js';
+import type { DeadLetterRepository } from '../../repositories/dead-letter.repository.js';
 import type { QueueManager } from '../queue/QueueManager.js';
+import type { WebhookDispatcher } from '../webhook/WebhookDispatcher.js';
 import type { Logger } from '../../infrastructure/index.js';
 
 // Función que procesa un job específico
@@ -32,7 +34,9 @@ export class JobProcessor {
     private readonly jobRepository: JobRepository,
     private readonly queueManager: QueueManager,
     private readonly logger: Logger,
-    retryConfig?: Partial<RetryConfig>
+    retryConfig?: Partial<RetryConfig>,
+    private readonly deadLetterRepository?: DeadLetterRepository,
+    private readonly webhookDispatcher?: WebhookDispatcher
   ) {
     this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
   }
@@ -78,7 +82,8 @@ export class JobProcessor {
       return { success: true, result };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      await this.handleError(job, errorMessage);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      await this.handleError(job, errorMessage, errorStack);
       return { success: false, error: errorMessage };
     }
   }
@@ -95,14 +100,15 @@ export class JobProcessor {
 
     this.logger.info({ jobId: job.id, jobType: job.type }, 'Job completed');
 
-    if (job.webhookUrl) {
-      await this.triggerWebhook(job, 'completed', result);
+    // Disparar webhook si está configurado
+    if (job.webhookUrl && this.webhookDispatcher) {
+      await this.webhookDispatcher.dispatch(job, 'completed', result);
     }
   }
   /**
    * Error en ejecución → decidir si reintentar o fallar
    */
-  private async handleError(job: Job, errorMessage: string): Promise<void> {
+  private async handleError(job: Job, errorMessage: string, errorStack?: string): Promise<void> {
     const maxRetries = job.maxRetries;
     const currentRetry = job.retryCount;
 
@@ -114,7 +120,7 @@ export class JobProcessor {
     if (currentRetry < maxRetries) {
       await this.scheduleRetry(job, currentRetry + 1, errorMessage);
     } else {
-      await this.handleFailure(job, errorMessage);
+      await this.handleFailure(job, errorMessage, errorStack);
     }
   }
   /**
@@ -136,53 +142,40 @@ export class JobProcessor {
     this.logger.info({ jobId: job.id, retryCount, delayMs: delay }, 'Job scheduled for retry');
   }
   /**
-   * Fallo definitivo → FAILED + DLQ
+   * Fallo definitivo → FAILED + DLQ (Redis + PostgreSQL)
    */
-  private async handleFailure(job: Job, errorMessage: string): Promise<void> {
+  private async handleFailure(job: Job, errorMessage: string, errorStack?: string): Promise<void> {
     await this.jobRepository.update(job.id, {
       status: 'FAILED',
       error: errorMessage,
       completedAt: new Date(),
     });
 
+    // Mover a DLQ en Redis
     await this.queueManager.moveToDLQ(job.id, errorMessage);
+
+    // Persistir en PostgreSQL para análisis y reintento
+    if (this.deadLetterRepository) {
+      await this.deadLetterRepository.create({
+        originalJobId: job.id,
+        jobName: job.name,
+        jobType: job.type,
+        jobPayload: job.payload,
+        jobPriority: job.priority,
+        failureReason: errorMessage,
+        failureCount: job.retryCount + 1,
+        lastError: errorMessage,
+        errorStack,
+        workerId: job.workerId ?? undefined,
+        originalCreatedAt: job.createdAt,
+      });
+    }
 
     this.logger.error({ jobId: job.id, error: errorMessage }, 'Job failed permanently');
 
-    if (job.webhookUrl) {
-      await this.triggerWebhook(job, 'failed', null, errorMessage);
-    }
-  }
-  /**
-   * Notificar via webhook (fire and forget, no bloquea)
-   */
-  private async triggerWebhook(
-    job: Job,
-    status: 'completed' | 'failed',
-    result?: unknown,
-    error?: string
-  ): Promise<void> {
-    if (!job.webhookUrl) return;
-
-    try {
-      const response = await fetch(job.webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: job.id,
-          jobType: job.type,
-          status,
-          result,
-          error,
-          completedAt: new Date().toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        this.logger.warn({ jobId: job.id, status: response.status }, 'Webhook failed');
-      }
-    } catch (err) {
-      this.logger.warn({ jobId: job.id, error: err }, 'Webhook error');
+    // Disparar webhook si está configurado
+    if (job.webhookUrl && this.webhookDispatcher) {
+      await this.webhookDispatcher.dispatch(job, 'failed', undefined, errorMessage);
     }
   }
 }

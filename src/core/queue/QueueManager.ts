@@ -146,4 +146,25 @@ export class QueueManager {
     await this.client.hDel(QUEUE_KEYS.PROCESSING, jobId);
     logger.debug({ jobId, delayMs }, 'Job requeued for retry');
   }
+
+  /**
+   * Elimina un job de la Dead Letter Queue por su jobId original
+   */
+  async removeFromDLQ(jobId: string): Promise<boolean> {
+    // Buscar la entrada en la DLQ que contiene este jobId
+    const entries = await this.client.zRange(QUEUE_KEYS.DEAD_LETTER, 0, -1);
+    for (const entry of entries) {
+      try {
+        const parsed = JSON.parse(entry) as { jobId: string };
+        if (parsed.jobId === jobId) {
+          await this.client.zRem(QUEUE_KEYS.DEAD_LETTER, entry);
+          logger.debug({ jobId }, 'Job removed from DLQ');
+          return true;
+        }
+      } catch {
+        // Entrada mal formada, ignorar
+      }
+    }
+    return false;
+  }
 }

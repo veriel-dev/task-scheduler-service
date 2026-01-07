@@ -20,6 +20,17 @@ const envSchema = z.object({
   // SCHEDULER
   SCHEDULER_CHECK_INTERVAL_MS: z.coerce.number().int().min(1000).default(10000),
   SCHEDULER_DEFAULT_TIMEZONE: z.string().default('UTC'),
+
+  // ORPHAN JOB RECOVERY
+  ORPHAN_CHECK_INTERVAL_MS: z.coerce.number().int().min(10000).default(60000),
+  ORPHAN_STALE_THRESHOLD_MS: z.coerce.number().int().min(30000).default(90000),
+  ORPHAN_RECOVERY_DELAY_MS: z.coerce.number().int().min(1000).default(5000),
+
+  // WEBHOOKS
+  WEBHOOK_TIMEOUT_MS: z.coerce.number().int().min(1000).default(10000),
+  WEBHOOK_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  WEBHOOK_RETRY_INTERVAL_MS: z.coerce.number().int().min(5000).default(30000),
+  WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce.number().int().min(1000).default(5000),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -147,6 +147,38 @@ model DeadLetterJob {
   @@map("dead_letter_jobs")
 }
 
+/// WebhookEvent almacena el historial y reintentos de webhooks
+model WebhookEvent {
+  id String @id @default(uuid())
+
+  // Referencia al job
+  jobId   String
+  jobType String
+
+  // Configuración del webhook
+  url     String
+  payload Json
+
+  // Estado del envío
+  status      String @default("pending") // pending, success, failed, retrying
+  attempts    Int    @default(0)
+  maxAttempts Int    @default(3)
+
+  // Respuesta del último intento
+  lastStatusCode Int?
+  lastError      String?
+  lastAttemptAt  DateTime?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([status])
+  @@index([jobId])
+  @@index([createdAt])
+  @@map("webhook_events")
+}
+
 /// Worker representa un proceso worker registrado
 model Worker {
   id       String @id @default(uuid())
