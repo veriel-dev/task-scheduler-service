@@ -312,7 +312,21 @@ pnpm scheduler    # Schedule executor
 - [x] **Fase 2**: Queue system con Redis (priority, delayed)
 - [x] **Fase 3**: Scheduling con cron
 - [x] **Fase 4**: Reliability (DLQ, webhooks, recovery)
-- [ ] **Fase 5**: Worker pool, rate limiting, auth
+- [ ] **Fase 5**: Worker pool, WebSocket para workers remotos
+- [ ] **Fase 6**: Production ready (rate limiting, API keys, OpenAPI docs)
+
+---
+
+## Consideraciones de Seguridad
+
+| Aspecto | Implementación |
+|---------|----------------|
+| **Autenticación** | API keys con scopes (read, write, admin) |
+| **Rate Limiting** | Por API key y por IP |
+| **Validación** | Zod schemas para todos los inputs |
+| **Payload Size** | Límite de tamaño (ej: 1MB) |
+| **Webhooks** | Verificación de URLs, timeouts, reintentos limitados |
+| **Secrets** | Variables de entorno, nunca en código |
 
 ---
 
