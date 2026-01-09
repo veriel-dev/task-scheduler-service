@@ -4,7 +4,7 @@ node_modules/
 # Build
 dist/
 
-# Prisma
+# Prisma generated client
 src/generated/prisma
 
 # Environment
@@ -36,18 +36,7 @@ tmp/
 temp/
 *.tmp
 
-# Project docs (local)
-docs/
+# Claude Code
 CLAUDE.md
 .mcp.json
-
-/src/generated/prisma
-
-/src/generated/prisma
-
-/src/generated/prisma
-
-/src/generated/prisma
-
-/src/generated/prisma
 .claude
