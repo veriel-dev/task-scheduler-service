@@ -11,7 +11,7 @@
 
 **Sistema de colas y tareas programadas con soporte para jobs diferidos, prioridades y recuperación automática**
 
-[Características](#características) • [Arquitectura](#arquitectura) • [API](#api-endpoints) • [Testing](#testing)
+[Características](#características) • [Demo](#demo) • [Arquitectura](#arquitectura) • [API](#api-endpoints) • [Testing](#testing)
 
 </div>
 
@@ -32,6 +32,51 @@ Sistema de task scheduling y job queue construido desde cero. Implementa colas c
 | **Reliability** | Dead Letter Queue, reintentos exponenciales, recovery automático |
 | **Observabilidad** | Health checks, métricas en tiempo real, logging estructurado (Pino) |
 | **Testing** | Vitest, tests unitarios, mocking de dependencias |
+| **Demo** | Dashboard terminal en tiempo real, monkey-patching para event capture |
+
+---
+
+## Demo
+
+El proyecto incluye un dashboard de terminal interactivo que demuestra el sistema completo en funcionamiento:
+
+```bash
+docker-compose up -d db redis
+pnpm prisma migrate dev
+pnpm demo
+```
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║ ⚡ TASK SCHEDULER - Live Demo                                   ║
+║ Health: ● healthy    Uptime: 48s                                ║
+╠══════════════════════════╦═══════════════════════════════════════╣
+║ WORKERS                  ║ QUEUES                                ║
+║ ● demo-worker [ACTIVE]   ║ Priority:   ██████░░░░ 3              ║
+║   Processed: 17          ║ Delayed:    ░░░░░░░░░░ 0              ║
+║   Failed:    8           ║ Processing: █░░░░░░░░░ 1              ║
+║                          ║ DLQ:        ██░░░░░░░░ 2              ║
+╠══════════════════════════╩═══════════════════════════════════════╣
+║ JOB FLOW                                                         ║
+║ 16:04:38 ⚙ report.generate  Processing...         78ee05bf       ║
+║ 16:04:43 ✓ report.generate  Completed (5.0s)      78ee05bf       ║
+║ 16:04:43 ⚙ image.resize     Processing...         19b670a1       ║
+║ 16:04:46 ↻                  Retry in 4s           19b670a1       ║
+║ 16:04:52 ☠                  Max retries exceeded  19b670a1       ║
+╠══════════════════════════════════════════════════════════════════╣
+║ METRICS  Completed: 17  Failed: 2  DLQ: 2  Throughput: ~24/min  ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+El demo levanta worker + scheduler en un solo proceso, crea jobs de distintos tipos y prioridades, simula fallos con reintentos exponenciales y muestra el flujo completo hasta la Dead Letter Queue.
+
+### Handlers de demo
+
+| Handler | Comportamiento |
+|---------|---------------|
+| `email.send` | Simula envío de email (1-3s) |
+| `report.generate` | Simula generaci��n de reporte (3-5s) |
+| `image.resize` | Simula resize de imagen (2-4s), falla deliberadamente si `shouldFail: true` |
 
 ---
 
@@ -127,6 +172,12 @@ src/
 │   ├── redis/
 │   ├── logger/
 │   └── config/
+├── demo/                # Dashboard interactivo
+│   ├── demo.ts          # Entry point demo
+│   ├── DemoRenderer.ts  # Renderizado terminal (Unicode + chalk)
+│   ├── DemoEventBus.ts  # Bus de eventos para captura en tiempo real
+│   ├── DemoScenario.ts  # Secuencia automática de jobs
+│   └── handlers/        # Handlers simulados (email, report, image)
 ├── app.ts               # Entry point API
 ├── worker.ts            # Entry point Worker
 ├── scheduler.ts         # Entry point Scheduler
@@ -259,7 +310,7 @@ pnpm test:watch        # Modo watch
 | **MetricsService** | Cálculo de estadísticas |
 | **ScheduleService** | Lógica de schedules |
 | **DeadLetterService** | Gestión de DLQ |
-| **Total** | **125 test blocks** |
+| **Total** | **72 tests** |
 
 ---
 
@@ -303,6 +354,7 @@ pnpm scheduler    # Schedule executor
 | `pnpm test` | Ejecutar tests |
 | `pnpm prisma migrate dev` | Ejecutar migraciones |
 | `pnpm prisma generate` | Generar cliente Prisma |
+| `pnpm demo` | Dashboard de terminal interactivo |
 
 ---
 
@@ -312,8 +364,7 @@ pnpm scheduler    # Schedule executor
 - [x] **Fase 2**: Queue system con Redis (priority, delayed)
 - [x] **Fase 3**: Scheduling con cron
 - [x] **Fase 4**: Reliability (DLQ, webhooks, recovery)
-- [ ] **Fase 5**: Worker pool, WebSocket para workers remotos
-- [ ] **Fase 6**: Production ready (rate limiting, API keys, OpenAPI docs)
+- [x] **Fase 5**: Demo interactivo (dashboard terminal, handlers realistas, escenario end-to-end)
 
 ---
 

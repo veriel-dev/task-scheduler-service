@@ -37,7 +37,8 @@ export interface Container {
   metricsService: MetricsService;
 }
 
-export async function createContainer(): Promise<Container> {
+export async function createContainer(customLogger?: typeof logger): Promise<Container> {
+  const log = customLogger ?? logger;
   const prisma = new PrismaClient();
   const redis = await getRedisClient();
   const queueManager = new QueueManager(redis);
@@ -50,14 +51,14 @@ export async function createContainer(): Promise<Container> {
   const webhookEventRepository = new WebhookEventRepository(prisma);
 
   // Webhook components
-  const webhookDispatcher = new WebhookDispatcher(webhookEventRepository, logger, {
+  const webhookDispatcher = new WebhookDispatcher(webhookEventRepository, log, {
     timeoutMs: env.WEBHOOK_TIMEOUT_MS,
     maxAttempts: env.WEBHOOK_MAX_ATTEMPTS,
   });
   const webhookRetryProcessor = new WebhookRetryProcessor(
     webhookEventRepository,
     webhookDispatcher,
-    logger,
+    log,
     {
       checkIntervalMs: env.WEBHOOK_RETRY_INTERVAL_MS,
       baseDelayMs: env.WEBHOOK_RETRY_BASE_DELAY_MS,
@@ -68,7 +69,7 @@ export async function createContainer(): Promise<Container> {
   const jobProcessor = new JobProcessor(
     jobRepository,
     queueManager,
-    logger,
+    log,
     undefined, // retryConfig - usar defaults
     deadLetterRepository,
     webhookDispatcher
@@ -77,7 +78,7 @@ export async function createContainer(): Promise<Container> {
     jobRepository,
     workerRepository,
     queueManager,
-    logger,
+    log,
     {
       checkIntervalMs: env.ORPHAN_CHECK_INTERVAL_MS,
       staleThresholdMs: env.ORPHAN_STALE_THRESHOLD_MS,
@@ -88,7 +89,7 @@ export async function createContainer(): Promise<Container> {
     scheduleRepository,
     jobRepository,
     queueManager,
-    logger,
+    log,
     { checkIntervalMs: env.SCHEDULER_CHECK_INTERVAL_MS }
   );
 
@@ -98,12 +99,12 @@ export async function createContainer(): Promise<Container> {
   const deadLetterService = new DeadLetterService(deadLetterRepository, jobRepository, queueManager);
   const metricsService = new MetricsService(prisma, redis, queueManager);
 
-  logger.info('Container initialized');
+  log.info('Container initialized');
 
   return {
     prisma,
     redis,
-    logger,
+    logger: log,
     queueManager,
     jobRepository,
     workerRepository,
